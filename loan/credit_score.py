@@ -2,7 +2,7 @@
 from django.shortcuts import get_object_or_404
 
 from bank.models import Personal_Information
-from loan.models import Loan
+from loan.models import Loan, Expenses
 
 
 ########################################################################################################################
@@ -141,11 +141,103 @@ class Residency(Address):
         self.houseno = None
 
 
-class Loanee(Loan):
-    pass
+class Loanee(Loan):  # Focus on this class
+    def __init__(self, new, amount, participating):
+        self.new_customer = new
+        self.loan_amount = amount
+        # other variables
+        self.loan_type = None  # Different loan types have different conditions
+        self.loan_period = None
+        self.loan_status = None  # check will be both for new existing and returning, checks the state of their previous loans
+        self.loan_purpose = None  # Belongs to Judgemental
+        self.participanting = participating
+        self.criminal_offence = None
+        self.defaults_payments = None
+        self.bankruptcy = None
+        self.child_support = None
+        # connected fields
+        self.expenses = None
+        self.economy = None
+        if self.participanting is not "Only me":
+            self.participant_details = None
+            self.participant_no = None
+
+    # Have to ensure these values are in existence before calling the function, otherwise these funtions are useless
+    def selfcheckBank(self):
+        if self.bankruptcy:
+            score = -1
+        else:
+            score = 0
+        return score
+
+    def selfchackCriminal(self):
+        if self.criminal_offence:
+            score = -1
+        else:
+            score = 0
+        return score  # accompanying documents may be needed as prof, or even physical visit of th eite
+
+    def selfcheckChild(self):
+        if self.child_support:
+            score = 0
+        else:
+            score = 1
+        return score
+
+    def selfcheckExtreme(self):
+        if self.criminal_offence and self.bankruptcy:
+            score = -3
+        elif self.criminal_offence and self.child_support:
+            score = -2
+        elif self.child_support and self.bankruptcy:
+            score = -2
+        elif self.bankruptcy and self.child_support and self.criminal_offence:  # extreme case!
+            score = -4
+        return score
+
+    # to check the purposes, we shall create a dictionary of keywords to look for
+    def checkpurpose(self):
+        if self.loan_purpose != "":
+            string_pupose = self.loan_purpose
+            # perform operations on that string
+            return self.loan_purpose
+
+    # function for splitting the purpose into single words
+    def splitpurpose(self):
+        purpose_list = self.checkpurpose().split(" ")
+        return purpose_list
+
+    # function for reading a predefine dictionary with key words needed to for decision making
+    def read_dict(self, filename):
+        data = open(filename, 'r')
+        temp = []
+        for line in data:
+            temp.append(line.strip('\n'))
+        data.close()
+        return temp
+
+    # function to campare the purpose defined and the values in the distionary
+    def compdata(self, words):
+        match = []
+        for word in words:
+            if word in self.splitpurpose():
+                match.append(word)
+        return match
+
+    # define a function to evaluate the severity of the words found
+    def evaluatewords(self):
+        dictionary = self.read_dict('key_words')
+        match_words = self.compdata(dictionary)
+        # checks
+        for word in match_words:
+            if (word).lower() in ['land', 'vehicle', 'funeral', 'marriage', 'vacation', 'debt']:
+                score = -2
+            else:
+                score = 0
+        return score
 
 
-class Guarantor(Loanee):
+class Guarantor(object):
     def __init__(self, fname, sname, idno, pin):
         self.firtname = fname
         self.surname = sname
@@ -159,6 +251,17 @@ class Guarantor(Loanee):
 class OtherGuarantor(Guarantor):
     def __init__(self, fname, sname, idno, pin):
         super(OtherGuarantor, self).__init__(fname, sname, idno, pin)
+
+
+class Expenses(Expenses):
+    def __init__(self, rent, elec, water, enter, school):
+        self.rent = rent
+        self.electricity = elec
+        self.water = water
+        self.entertainment = enter
+        self.school_fees = school
+        self.others = None
+
 
 
 
